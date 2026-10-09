@@ -87,12 +87,10 @@
       gap: 10px;
     }
 
-    /* Colorful Gradients for Headers */
     .weather-header { color: #00f2fe; }
     .iot-header { color: #ff0844; }
     .input-header { color: #00ff87; }
 
-    /* Weather Elements */
     .search-box {
       display: flex;
       gap: 10px;
@@ -138,7 +136,6 @@
       -webkit-text-fill-color: transparent;
     }
 
-    /* Data Display Grid */
     .data-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -178,6 +175,7 @@
       margin-top: 10px;
       color: #00ff87;
       text-align: center;
+      word-break: break-word;
     }
 
     footer {
@@ -266,3 +264,123 @@
       <button style="width: 100%; background: linear-gradient(45deg, #00b09b, #96c93d);" onclick="sendSensorData()">
         <i class="fa-solid fa-upload"></i> Send to Firebase
       </button>
+    </div>
+
+  </div>
+
+  <footer>
+    Designed for GitHub Pages & IoT Integration
+  </footer>
+
+  <!-- Firebase Modular SDK Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCIUPy_kDhs0Qv8dHdz42REsLjGqUJbM04",
+      authDomain: "iot-with-c-program-8460e.firebaseapp.com",
+      databaseURL: "https://iot-with-c-program-8460e-default-rtdb.firebaseio.com",
+      projectId: "iot-with-c-program-8460e",
+      storageBucket: "iot-with-c-program-8460e.firebasestorage.app",
+      messagingSenderId: "817173468979",
+      appId: "1:817173468979:web:dc315685ba87884fa09046",
+      measurementId: "G-W2XEJ1HW0V"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const fbTemp = document.getElementById("fbTemp");
+    const fbPress = document.getElementById("fbPress");
+    const statusDiv = document.getElementById("status");
+
+    // Realtime Data Listener
+    const sensorRef = ref(db, 'sensorReadings');
+    onValue(sensorRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        fbTemp.innerText = (data.temperature !== undefined ? data.temperature : "--") + " °C";
+        fbPress.innerText = (data.pressure !== undefined ? data.pressure : "--") + " hPa";
+        statusDiv.innerText = "⚡ Realtime Connected! Updated: " + new Date().toLocaleTimeString();
+        statusDiv.style.color = "#00ff87";
+      } else {
+        statusDiv.innerText = "Connected! No data in DB yet.";
+        statusDiv.style.color = "#00ff87";
+      }
+    }, (error) => {
+      statusDiv.innerText = "❌ Error: " + error.message;
+      statusDiv.style.color = "#ff4b2b";
+    });
+
+    // Send Data Function
+    window.sendSensorData = function() {
+      const t = parseFloat(document.getElementById("sendTemp").value);
+      const p = parseFloat(document.getElementById("sendPress").value);
+
+      if (isNaN(t) || isNaN(p)) {
+        alert("Please enter valid Temperature and Pressure numbers!");
+        return;
+      }
+
+      set(ref(db, 'sensorReadings'), {
+        temperature: t,
+        pressure: p,
+        timestamp: new Date().toISOString()
+      })
+      .then(() => {
+        alert("Data sent successfully to Firebase!");
+        document.getElementById("sendTemp").value = "";
+        document.getElementById("sendPress").value = "";
+      })
+      .catch((err) => {
+        alert("Upload Failed: " + err.message);
+      });
+    };
+  </script>
+
+  <!-- Open-Meteo Weather API Script -->
+  <script>
+    async function getWeather(city = null) {
+      const cityName = city || document.getElementById("cityInput").value || "Chennai";
+      try {
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`);
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || geoData.results.length === 0) {
+          alert("City not found!");
+          return;
+        }
+
+        const { latitude, longitude, name, country } = geoData.results[0];
+
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m`);
+        const weatherData = await weatherRes.json();
+
+        document.getElementById("cityName").innerText = `${name}, ${country}`;
+        document.getElementById("weatherTemp").innerText = `${weatherData.current_weather.temperature}°C`;
+        document.getElementById("windSpeed").innerText = `${weatherData.current_weather.windspeed} km/h`;
+        document.getElementById("humidity").innerText = `${weatherData.hourly.relativehumidity_2m[0]}%`;
+        document.getElementById("weatherDesc").innerText = getWeatherDescription(weatherData.current_weather.weathercode);
+
+      } catch (err) {
+        console.error("Weather fetch error:", err);
+      }
+    }
+
+    function getWeatherDescription(code) {
+      const codes = {
+        0: "Clear Sky ☀️",
+        1: "Mainly Clear 🌤️", 2: "Partly Cloudy ⛅", 3: "Overcast ☁️",
+        45: "Foggy 🌫️", 61: "Slight Rain 🌧️", 63: "Moderate Rain 🌧️",
+        65: "Heavy Rain 🌧️", 95: "Thunderstorm ⛈️"
+      };
+      return codes[code] || "Sunny / Clear ☀️";
+    }
+
+    window.onload = () => getWeather("Chennai");
+  </script>
+</body>
+</html>
